@@ -1,34 +1,64 @@
 <script lang="ts" setup>
 import axios from "axios";
 import Banner from "../../assets/banner.png";
-import { Ideas } from "../../data/ideas";
 import { ref } from "vue";
 import CardIdeas from "../../components/Card/card-ideas.vue";
-import { onMounted } from "vue";
+import { onMounted, watch } from "vue";
 import { FwbPagination } from "flowbite-vue";
+import { useRoute, useRouter } from "vue-router";
+
+const router = useRouter();
+const route = useRoute();
 
 const page = ref<number>(10);
-const sort = ref<string>("Newest");
+const sort = ref<string>("published_at");
 const currentPage = ref<number>(1);
+const totalPage = ref<number>(5);
 
 const ideas = ref<any[]>([]);
 
 const fetchIdeas = async () => {
   try {
     const response = await axios.get(
-      `/api/ideas?page[number]=1&page[size]=10&sort=published_at`
+      `https://suitmedia-backend.suitdev.com/api/ideas?page[number]=${currentPage.value}&page[size]=${page.value}&append[]=small_image&append[]=medium_image&sort=${sort.value}`
     );
-    ideas.value = response.data;
-  } catch (error) {
-    console.error("Error fetching ideas:", error);
+    ideas.value = response.data.data;
+  } catch (error: any) {
+    console.error(error.message);
+  }
+};
+
+const queryParams = () => {
+  router.push({
+    path: "/ideas",
+    query: {
+      "page[number]": currentPage.value,
+      "page[size]": page.value,
+      "append[]": ["small_image", "medium_image"],
+      sort: sort.value,
+    },
+  });
+};
+
+const totalPages = (page: number) => {
+  if (page === 10 || page === 20 || page === 50) {
+    totalPage.value = Math.ceil(274 / page);
   }
 };
 
 onMounted(() => {
   fetchIdeas();
+  const query = route.query;
+  if (query["page[number]"]) currentPage.value = Number(query["page[number]"]);
+  if (query["page[size]"]) page.value = Number(query["page[size]"]);
+  if (query.sort) sort.value = String(query.sort);
 });
 
-console.log(ideas);
+watch([page, sort, currentPage], () => {
+  queryParams();
+  fetchIdeas();
+  totalPages(page.value);
+});
 </script>
 
 <template>
@@ -57,7 +87,7 @@ console.log(ideas);
         style="clip-path: polygon(50% 100%, 100% 100%, 200% 0, 0% 100%)"
       ></div>
       <div
-        class="absolute hidden lg:block bottom-0 right-0 bg-white h-32 w-full"
+        class="absolute hidden xl:block bottom-0 right-0 left-0 bg-white h-36 w-full"
         style="clip-path: polygon(50% 100%, 100% 100%, 100% 0, 0% 100%)"
       ></div>
     </section>
@@ -92,7 +122,9 @@ console.log(ideas);
                 id="sort"
                 class="bg-gray-50 border w-28 border-gray-300 text-gray-900 text-sm rounded-full focus:ring-orange focus:border-orange block py-2 px-3"
               >
-                <option :value="sort" hidden>{{ sort }}</option>
+                <option :value="sort" hidden>
+                  {{ sort === "published_at" ? "Newest" : "longest" }}
+                </option>
                 <option value="published_at">Newest</option>
                 <option value="-published_at">longest</option>
               </select>
@@ -103,7 +135,7 @@ console.log(ideas);
       <div
         class="grid lg:grid-cols-4 md:grid-cols-3 sm:grid-cols-2 grid-cols-1 gap-10 py-10"
       >
-        <div v-for="(item, index) in Ideas" :key="index">
+        <div v-for="(item, index) in ideas" :key="index">
           <CardIdeas :item="item" />
         </div>
       </div>
@@ -111,7 +143,7 @@ console.log(ideas);
     <section class="pb-14">
       <fwb-pagination
         v-model="currentPage"
-        :total-pages="100"
+        :total-pages="totalPage"
         previous-label="<<"
         next-label=">>"
       ></fwb-pagination>

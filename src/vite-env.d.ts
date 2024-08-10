@@ -25,3 +25,12 @@ declare module "*.webp" {
   const value: string;
   export default value;
 }
+
+interface ImportMetaEnv {
+  VITE_URL_ENDPOINT: string;
+  // Tambahkan variabel lingkungan lain di sini jika diperlukan
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
